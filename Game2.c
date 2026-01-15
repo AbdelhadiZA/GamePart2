@@ -148,7 +148,7 @@ Player* selectPlayer(Queue *F, Queue *F1, Queue *F3, int round) {
 }
 
 // ------------------ Play Round ------------------
-Player* playRound(Player *p1, Player *p2, Queue *F, Queue *F1, Queue *F3) {
+void playRound(Player *p1, Player *p2, Queue *F, Queue *F1, Queue *F3) {
     int score1 = 0, score2 = 0;
     int valuesGenerated = 0;
 
@@ -187,8 +187,8 @@ Player* playRound(Player *p1, Player *p2, Queue *F, Queue *F1, Queue *F3) {
         if (p2->losses >= 2) insertLP(p2);
         else enqueue(F3, p2);
 
-        if (p1->wins >= 2) { insertLG(p1); return NULL; }
-        return p1;
+        if (p1->wins >= 2) insertLG(p1);
+        else enqueue(F1, p1); // Winner goes to F1
     } else if (score2 > score1) {
         p2->wins++; p1->losses++;
         p1->score += score1; p2->score += score2;
@@ -196,18 +196,17 @@ Player* playRound(Player *p1, Player *p2, Queue *F, Queue *F1, Queue *F3) {
         if (p1->losses >= 2) insertLP(p1);
         else enqueue(F3, p1);
 
-        if (p2->wins >= 2) { insertLG(p2); return NULL; }
-        return p2;
+        if (p2->wins >= 2) insertLG(p2);
+        else enqueue(F1, p2); // Winner goes to F1
     } else {
         enqueue(F, p1);
         enqueue(F, p2);
-        return NULL;
     }
 }
 
 // ------------------ Game Over Check ------------------
-int gameOver(Queue *F, Queue *F1, Queue *F3, Player *currentWinner, int round, int numPlayers) {
-    if (F->head == NULL && F1->head == NULL && F3->head == NULL && currentWinner == NULL) {
+int gameOver(Queue *F, Queue *F1, Queue *F3, int round, int numPlayers) {
+    if (F->head == NULL && F1->head == NULL && F3->head == NULL) {
         return 1;
     }
     if (round >= 2 * numPlayers) {
@@ -249,14 +248,12 @@ int main() {
         printf("Enter name for Player %d: ", i);
         scanf("%s", p->name);
         p->age = getPositiveInt("Enter age: ");
-        p->score = 0; p->wins = 0; p->losses = 0; p->next = NULL;
                 enqueue(&F, p);
     }
 
     int round = 1;
-    Player *currentWinner = NULL;
 
-    while (!gameOver(&F, &F1, &F3, currentWinner, round, numPlayers)) {
+    while (!gameOver(&F, &F1, &F3, round, numPlayers)) {
         Player *p1, *p2;
 
         if (round == 1) {
@@ -264,22 +261,17 @@ int main() {
             p1 = dequeue(&F);
             p2 = dequeue(&F);
         } else {
-            // Winner continues immediately
-            p1 = currentWinner;
+            // Select players based on priority: F1 > F > F3
+            p1 = selectPlayer(&F, &F1, &F3, round);
             p2 = selectPlayer(&F, &F1, &F3, round);
         }
 
         if (p1 == NULL || p2 == NULL) break;
 
         printf("\n--- Round %d ---\n", round);
-        currentWinner = playRound(p1, p2, &F, &F1, &F3);
+        playRound(p1, p2, &F, &F1, &F3);
         displayState(&F, &F1, &F3);
         round++;
-
-        // If no winner continues (tie), reset currentWinner
-        if (currentWinner == NULL && !gameOver(&F, &F1, &F3, currentWinner, round, numPlayers)) {
-            currentWinner = selectPlayer(&F, &F1, &F3, round);
-        }
     }
 
     // Final rule: if only one player remains in a queue, send them to LP
@@ -294,14 +286,6 @@ int main() {
     if (F3.head != NULL && F3.head->next == NULL) {
         Player *last = dequeue(&F3);
         insertLP(last);
-    }
-
-    // Extra rule: if currentWinner is left alone at the end, send to LP unless already in LG
-    if (currentWinner != NULL) {
-        if (currentWinner->wins < 2) {
-            insertLP(currentWinner);
-        }
-        currentWinner = NULL;
     }
 
     printf("\n=== GAME OVER ===\n");

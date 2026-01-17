@@ -3,7 +3,6 @@
 #include <string.h>
 #include <time.h>
 
-// ------------------ Player Structure ------------------
 typedef struct Player {
     int id;
     char name[30];
@@ -16,17 +15,14 @@ typedef struct Player {
     struct Player *next;
 } Player;
 
-// ------------------ Queue Structure ------------------
 typedef struct Queue {
     Player *head;
     Player *tail;
 } Queue;
 
-// ------------------ Global Lists ------------------
 Player *LG = NULL; // Winners list
 Player *LP = NULL; // Losers list
 
-// ------------------ Queue Operations ------------------
 void enqueue(Queue *q, Player *p) {
     p->next = NULL;
     if (q->tail == NULL) {
@@ -46,7 +42,6 @@ Player* dequeue(Queue *q) {
     return p;
 }
 
-// ------------------ Utility Functions ------------------
 int gcd(int a, int b) {
     while (b != 0) {
         int temp = b;
@@ -75,16 +70,14 @@ int sumDigits(int num) {
 
 int checkScore(int n1, int n2) {
     int g = gcd(n1, n2);
-    int temp = g;
-    while (temp > 0) {
-        int d = temp % 10;
+    while (g > 0) {
+        int d = g % 10;
         if (containsDigit(n1, d) || containsDigit(n2, d)) return 1;
-        temp /= 10;
+        g /= 10;
     }
     return 0;
 }
 
-// ------------------ LG / LP Insert ------------------
 void insertLG(Player *p) {
     p->next = NULL;
     if (LG == NULL || p->score > LG->score) {
@@ -105,7 +98,6 @@ void insertLP(Player *p) {
     LP = p;
 }
 
-// ------------------ Input Validation ------------------
 int getPositiveInt(const char *prompt) {
     int value;
     do {
@@ -122,28 +114,21 @@ int getPositiveInt(const char *prompt) {
     return value;
 }
 
-// ------------------ Display State ------------------
 void displayState(Queue *F, Queue *F1, Queue *F3) {
     printf("\n--- Current State ---\n");
     printf("Queue F: ");
-    Player *cur = F->head;
-    while (cur) { printf("%s ", cur->name); cur = cur->next; }
+    for (Player *cur = F->head; cur; cur = cur->next) printf("%s ", cur->name);
     printf("\nQueue F1: ");
-    cur = F1->head;
-    while (cur) { printf("%s ", cur->name); cur = cur->next; }
+    for (Player *cur = F1->head; cur; cur = cur->next) printf("%s ", cur->name);
     printf("\nQueue F3: ");
-    cur = F3->head;
-    while (cur) { printf("%s ", cur->name); cur = cur->next; }
+    for (Player *cur = F3->head; cur; cur = cur->next) printf("%s ", cur->name);
     printf("\nLG (Winners): ");
-    cur = LG;
-    while (cur) { printf("%s(%d) ", cur->name, cur->score); cur = cur->next; }
+    for (Player *cur = LG; cur; cur = cur->next) printf("%s(%d) ", cur->name, cur->score);
     printf("\nLP (Losers): ");
-    cur = LP;
-    while (cur) { printf("%s ", cur->name); cur = cur->next; }
+    for (Player *cur = LP; cur; cur = cur->next) printf("%s ", cur->name);
     printf("\n---------------------\n");
 }
 
-// ------------------ Player Selection ------------------
 Player* selectPlayer(Queue *F, Queue *F1, Queue *F3) {
     if (F1->head != NULL) return dequeue(F1);
     if (F->head != NULL) return dequeue(F);
@@ -151,82 +136,73 @@ Player* selectPlayer(Queue *F, Queue *F1, Queue *F3) {
     return NULL;
 }
 
-// ------------------ Play Round (Part I) ------------------
 void playRoundPart1(Player *p1, Player *p2, Queue *F, Queue *F1, Queue *F3) {
-    int score1 = 0, score2 = 0;
-    int valuesGenerated = 0;
-
+    int score1 = 0, score2 = 0, valuesGenerated = 0;
+    getchar(); // clear buffer
     while (abs(score1 - score2) < 3 && valuesGenerated < 12) {
+        printf("%s, press Enter to generate a number...\n", (valuesGenerated % 2 == 0) ? p1->name : p2->name);
+        getchar();
         int val = rand() % 1000000;
-        int sum = sumDigits(val);
-        if (sum % 5 == 0) {
+        printf("%s generated number: %d\n", (valuesGenerated % 2 == 0) ? p1->name : p2->name, val);
+        if (sumDigits(val) % 5 == 0) {
             if (valuesGenerated % 2 == 0) score1++;
             else score2++;
         }
         valuesGenerated++;
     }
-
     printf("Result (Part I): %s(%d) vs %s(%d)\n", p1->name, score1, p2->name, score2);
-
+    p1->score += score1; p2->score += score2;
     if (score1 > score2) {
-        p1->wins++; p1->consecutiveWins++; p2->losses++; p2->consecutiveLosses++;
-        p1->score += score1; p2->score += score2;
-
-        if (p1->consecutiveWins >= 3) enqueue(F1, p1);
-        else enqueue(F, p1);
-
-        if (p2->consecutiveLosses >= 3) enqueue(F3, p2);
-        else enqueue(F, p2);
-
+        p1->wins++; p1->consecutiveWins++; p1->consecutiveLosses = 0;
+        p2->losses++; p2->consecutiveLosses++; p2->consecutiveWins = 0;
         if (p1->wins >= 5) insertLG(p1);
-        if (p2->losses >= 5) insertLP(p2);
-    } else if (score2 > score1) {
-        p2->wins++; p2->consecutiveWins++; p1->losses++; p1->consecutiveLosses++;
-        p1->score += score1; p2->score += score2;
-
-        if (p2->consecutiveWins >= 3) enqueue(F1, p2);
-        else enqueue(F, p2);
-
-        if (p1->consecutiveLosses >= 3) enqueue(F3, p1);
+        else if (p1->consecutiveWins >= 3) enqueue(F1, p1);
         else enqueue(F, p1);
-
+        if (p2->losses >= 5) insertLP(p2);
+        else if (p2->consecutiveLosses >= 3) enqueue(F3, p2);
+        else enqueue(F, p2);
+    } else if (score2 > score1) {
+        p2->wins++; p2->consecutiveWins++; p2->consecutiveLosses = 0;
+        p1->losses++; p1->consecutiveLosses++; p1->consecutiveWins = 0;
         if (p2->wins >= 5) insertLG(p2);
+        else if (p2->consecutiveWins >= 3) enqueue(F1, p2);
+        else enqueue(F, p2);
         if (p1->losses >= 5) insertLP(p1);
+        else if (p1->consecutiveLosses >= 3) enqueue(F3, p1);
+        else enqueue(F, p1);
     } else {
         enqueue(F, p1);
         enqueue(F, p2);
     }
 }
 
-// ------------------ Play Round (Part II) ------------------
 void playRoundPart2(Player *p1, Player *p2, Queue *F, Queue *F1, Queue *F3) {
-    int score1 = 0, score2 = 0;
-    int valuesGenerated = 0;
-
+    int score1 = 0, score2 = 0, valuesGenerated = 0;
+    getchar(); // clear buffer
     while (abs(score1 - score2) < 3 && valuesGenerated < 16) {
-        int n1 = rand() % 1000 + 1;
-        int n2 = rand() % 1000 + 1;
+        printf("%s, press Enter to generate two numbers...\n", (valuesGenerated % 2 == 0) ? p1->name : p2->name);
+        getchar();
+        int n1 = rand() % 1000 + 1, n2 = rand() % 1000 + 1;
+        printf("%s generated numbers: %d and %d\n", (valuesGenerated % 2 == 0) ? p1->name : p2->name, n1, n2);
         if (checkScore(n1, n2)) {
             if (valuesGenerated % 2 == 0) score1++;
             else score2++;
         }
         valuesGenerated++;
     }
-
     printf("Result (Part II): %s(%d) vs %s(%d)\n", p1->name, score1, p2->name, score2);
-
+    p1->score += score1; p2->score += score2;
     if (score1 > score2) {
-        p1->wins++; p1->consecutiveWins++; p2->losses++; p2->consecutiveLosses++;
-        p1->score += score1; p2->score += score2;
-
+        p1->wins++; p1->consecutiveWins++; p1->consecutiveLosses = 0;
+        p2->losses++; p2->consecutiveLosses++; p2->consecutiveWins = 0;
         if (p1->consecutiveWins >= 2) insertLG(p1);
         else enqueue(F1, p1);
-
         if (p2->losses >= 2) insertLP(p2);
         else enqueue(F3, p2);
     } else if (score2 > score1) {
-        p2->wins++; p2->consecutiveWins++; p1->losses++; p1->consecutiveLosses++;
-        p1->score += score1; p2->score += score2;
+        p2->wins++; p2->consecutiveWins++; p2->consecutiveLosses = 0;
+        p1->losses++;
+                p1->consecutiveWins = 0;
 
         if (p2->consecutiveWins >= 2) insertLG(p2);
         else enqueue(F1, p2);
@@ -239,25 +215,20 @@ void playRoundPart2(Player *p1, Player *p2, Queue *F, Queue *F1, Queue *F3) {
     }
 }
 
-// ------------------ Print Top 3 Winners ------------------
 void printTopWinners() {
     printf("\n=== TOP 3 WINNERS ===\n");
-        Player *cur = LG;
+    Player *cur = LG;
     int count = 0;
     while (cur != NULL && count < 3) {
         printf("%d. %s with %d points\n", count + 1, cur->name, cur->score);
         cur = cur->next;
         count++;
     }
-    if (count == 0) {
-        printf("No winners recorded.\n");
-    }
+    if (count == 0) printf("No winners recorded.\n");
 }
 
-// ------------------ Main ------------------
 int main() {
     srand(time(NULL));
-
     Queue F = {NULL, NULL}, F1 = {NULL, NULL}, F3 = {NULL, NULL};
 
     int numPlayers = getPositiveInt("Enter number of players (>=2): ");
@@ -272,22 +243,18 @@ int main() {
         printf("Enter name for Player %d: ", i);
         scanf("%s", p->name);
         p->age = getPositiveInt("Enter age: ");
-        p->score = 0; p->wins = 0; p->losses = 0;
-        p->consecutiveWins = 0; p->consecutiveLosses = 0;
+        p->score = p->wins = p->losses = p->consecutiveWins = p->consecutiveLosses = 0;
         p->next = NULL;
         enqueue(&F, p);
     }
 
-    int round = 1;
-    int maxRoundsPart1 = 3 * numPlayers;
-    int maxRoundsPart2 = 2 * numPlayers;
+    int round = 1, maxRoundsPart1 = 3 * numPlayers, maxRoundsPart2 = 2 * numPlayers;
 
     // ----------- Part I Strategy -----------
     while (round <= maxRoundsPart1 && (F.head || F1.head || F3.head)) {
         Player *p1 = selectPlayer(&F, &F1, &F3);
         Player *p2 = selectPlayer(&F, &F1, &F3);
-        if (p1 == NULL || p2 == NULL) break;
-
+        if (!p1 || !p2) break;
         printf("\n--- Part I Round %d ---\n", round);
         playRoundPart1(p1, p2, &F, &F1, &F3);
         displayState(&F, &F1, &F3);
@@ -299,35 +266,31 @@ int main() {
     while (round <= maxRoundsPart2 && (F.head || F1.head || F3.head)) {
         Player *p1 = selectPlayer(&F, &F1, &F3);
         Player *p2 = selectPlayer(&F, &F1, &F3);
-        if (p1 == NULL || p2 == NULL) break;
-
+        if (!p1 || !p2) break;
         printf("\n--- Part II Round %d ---\n", round);
         playRoundPart2(p1, p2, &F, &F1, &F3);
         displayState(&F, &F1, &F3);
         round++;
     }
 
-    // ----------- End of Game Rules (Part II forced placement) -----------
-    if (F.head || F1.head || F3.head) {
-        printf("\n--- Forced End of Game Placement ---\n");
-        while (F1.head != NULL) {
-            Player *p = dequeue(&F1);
-            insertLG(p);   // F1 → LG
-        }
-        while (F.head != NULL) {
-            Player *p = dequeue(&F);
-            insertLP(p);   // F → LP
-        }
-        while (F3.head != NULL) {
-            Player *p = dequeue(&F3);
-            insertLP(p);   // F3 → LP
-        }
+    // ----------- End of Game Forced Placement -----------
+    printf("\n--- Forced End of Game Placement ---\n");
+    while (F1.head != NULL) {
+        Player *p = dequeue(&F1);
+        if (p->score == 0) p->score = p->wins; // ensure score preserved
+        insertLG(p);
+    }
+    while (F.head != NULL) {
+        Player *p = dequeue(&F);
+        insertLP(p);
+    }
+    while (F3.head != NULL) {
+        Player *p = dequeue(&F3);
+        insertLP(p);
     }
 
     printf("\n=== GAME OVER ===\n");
     displayState(&F, &F1, &F3);
-
-    // Print Top 3 Winners
     printTopWinners();
 
     return 0;
